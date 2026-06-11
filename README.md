@@ -1,7 +1,7 @@
 # Xray Panel — VLESS + WS + TLS
 
 A minimal self-hosted panel for managing Xray users.  
-No Marzban, no 3X-UI — just Python (FastAPI) + SQLite + Xray.
+Python (FastAPI) + SQLite + Xray.
 
 ## Stack
 | Layer | Tool |
