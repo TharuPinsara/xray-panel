@@ -20,7 +20,7 @@ No Marzban, no 3X-UI — just Python (FastAPI) + SQLite + Xray.
 ## Install (one command)
 
 ```bash
-git clone https://github.com/yourname/xray-panel   # or copy files to your VPS
+git clone https://github.com/TharuPinsara/xray-panel   # or copy files to your VPS
 cd xray-panel
 sudo bash install.sh --domain your.domain.com
 ```
