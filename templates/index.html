@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Xray Panel</title>
+<style>
+  :root {
+    --bg:       #0d1117;
+    --surface:  #161b22;
+    --surface2: #21262d;
+    --border:   #30363d;
+    --text:     #e6edf3;
+    --muted:    #8b949e;
+    --green:    #3fb950;
+    --red:      #f85149;
+    --blue:     #58a6ff;
+    --amber:    #d29922;
+    --purple:   #bc8cff;
+    --radius:   8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 14px;
+    min-height: 100vh;
+  }
+  /* Layout */
+  .sidebar {
+    position: fixed; top: 0; left: 0; bottom: 0;
+    width: 220px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    padding: 0;
+    z-index: 100;
+  }
+  .sidebar-logo {
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .logo-icon {
+    width: 32px; height: 32px;
+    background: var(--blue);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .logo-text { font-size: 15px; font-weight: 600; color: var(--text); letter-spacing: 0.5px; }
+  .logo-sub  { font-size: 10px; color: var(--muted); }
+  nav { padding: 12px 0; flex: 1; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 20px;
+    color: var(--muted);
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: all 0.15s;
+    font-size: 13px;
+  }
+  .nav-item:hover { color: var(--text); background: var(--surface2); }
+  .nav-item.active { color: var(--blue); border-left-color: var(--blue); background: rgba(88,166,255,0.06); }
+  .nav-icon { font-size: 15px; }
+  .sidebar-footer {
+    padding: 14px 20px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .main {
+    margin-left: 220px;
+    padding: 28px 32px;
+    min-height: 100vh;
+  }
+  .page { display: none; }
+  .page.active { display: block; }
+  /* Status bar */
+  .status-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+  }
+  .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+  .stat-value { font-size: 22px; font-weight: 600; color: var(--text); }
+  .stat-value.green { color: var(--green); }
+  .stat-value.red   { color: var(--red); }
+  .stat-value.blue  { color: var(--blue); }
+  /* Section header */
+  .section-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .section-title { font-size: 16px; font-weight: 600; color: var(--text); }
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 14px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+  .btn:hover { background: var(--surface); border-color: #8b949e; }
+  .btn-primary  { background: var(--blue); border-color: var(--blue); color: #0d1117; font-weight: 600; }
+  .btn-primary:hover { filter: brightness(1.1); }
+  .btn-danger   { border-color: var(--red); color: var(--red); }
+  .btn-danger:hover { background: rgba(248,81,73,0.1); }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+  /* Table */
+  .table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    padding: 10px 16px;
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--muted);
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    vertical-align: middle;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .uuid-cell {
+    font-size: 11px;
+    color: var(--muted);
+    cursor: pointer;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .uuid-cell:hover { color: var(--blue); }
+  /* Badge */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .badge-green { background: rgba(63,185,80,0.15); color: var(--green); }
+  .badge-red   { background: rgba(248,81,73,0.15); color: var(--red); }
+  /* Modal */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 999;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    width: 420px;
+    max-width: 95vw;
+  }
+  .modal-title { font-size: 16px; font-weight: 600; margin-bottom: 18px; }
+  .form-group { margin-bottom: 14px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
+  input[type=text], textarea {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 8px 12px;
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  input[type=text]:focus, textarea:focus { border-color: var(--blue); }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+  /* Toast */
+  #toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 18px;
+    font-size: 13px;
+    z-index: 9999;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: all 0.25s;
+    pointer-events: none;
+    max-width: 320px;
+  }
+  #toast.show { opacity: 1; transform: translateY(0); }
+  #toast.success { border-color: var(--green); color: var(--green); }
+  #toast.error   { border-color: var(--red);   color: var(--red); }
+  /* Link count */
+  .link-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 11px;
+    color: var(--blue);
+    word-break: break-all;
+    cursor: pointer;
+    margin-top: 6px;
+  }
+  .link-box:hover { border-color: var(--blue); }
+  /* Config page */
+  .config-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    font-size: 12px;
+    color: #7ee787;
+    white-space: pre-wrap;
+    overflow-x: auto;
+    max-height: 420px;
+    overflow-y: auto;
+  }
+  /* Empty state */
+  .empty { text-align: center; padding: 48px 20px; color: var(--muted); }
+  .empty-icon { font-size: 36px; margin-bottom: 10px; }
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">⬡</div>
+    <div>
+      <div class="logo-text">XrayPanel</div>
+      <div class="logo-sub">VLESS · WS · TLS</div>
+    </div>
+  </div>
+  <nav>
+    <div class="nav-item active" onclick="showPage('dashboard', this)">
+      <span class="nav-icon">◈</span> Dashboard
+    </div>
+    <div class="nav-item" onclick="showPage('users', this)">
+      <span class="nav-icon">◎</span> Users
+    </div>
+    <div class="nav-item" onclick="showPage('config', this)">
+      <span class="nav-icon">◇</span> Config
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    Xray Panel v1.0<br>
+    <span id="footer-status" style="color:var(--muted)">checking…</span>
+  </div>
+</aside>
+
+<main class="main">
+
+  <!-- DASHBOARD PAGE -->
+  <div id="page-dashboard" class="page active">
+    <div class="status-bar">
+      <div class="stat-card">
+        <div class="stat-label">Xray Status</div>
+        <div class="stat-value" id="s-status">…</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Users</div>
+        <div class="stat-value blue" id="s-total">…</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Active Users</div>
+        <div class="stat-value green" id="s-active">…</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Xray Version</div>
+        <div class="stat-value" id="s-version" style="font-size:13px; padding-top:4px">…</div>
+      </div>
+    </div>
+
+    <div class="section-head">
+      <div class="section-title">Quick actions</div>
+    </div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="openAddModal()">＋ Add User</button>
+      <button class="btn" onclick="restartXray()">↺ Restart Xray</button>
+      <button class="btn" onclick="showPage('users', document.querySelector('[onclick*=users]'))">→ Manage Users</button>
+    </div>
+
+    <div style="margin-top:28px" class="section-head">
+      <div class="section-title">Since</div>
+    </div>
+    <div style="color:var(--muted); font-size:13px;" id="s-since">—</div>
+  </div>
+
+  <!-- USERS PAGE -->
+  <div id="page-users" class="page">
+    <div class="section-head">
+      <div class="section-title">Users</div>
+      <button class="btn btn-primary" onclick="openAddModal()">＋ Add User</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>UUID (click to copy)</th>
+            <th>Status</th>
+            <th>Note</th>
+            <th>Created</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="users-tbody">
+          <tr><td colspan="7" class="empty"><div class="empty-icon">◎</div>Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- CONFIG PAGE -->
+  <div id="page-config" class="page">
+    <div class="section-head">
+      <div class="section-title">Xray config.json</div>
+      <button class="btn" onclick="loadConfig()">↺ Refresh</button>
+    </div>
+    <div id="config-box" class="config-box">Loading…</div>
+    <div style="margin-top:20px" class="section-head">
+      <div class="section-title">VLESS link format</div>
+    </div>
+    <div style="color:var(--muted); font-size:13px; line-height:1.8;">
+      Client link pattern for this setup (replace placeholders):<br>
+      <div class="link-box" id="link-template">vless://&lt;UUID&gt;@&lt;YOUR_DOMAIN&gt;:443?encryption=none&security=tls&type=ws&path=%2Fvless#UserName</div>
+      Click a UUID in the Users page to auto-copy a ready link.
+    </div>
+  </div>
+
+</main>
+
+<!-- ADD USER MODAL -->
+<div class="modal-overlay" id="add-modal">
+  <div class="modal">
+    <div class="modal-title">Add user</div>
+    <div class="form-group">
+      <label>Name</label>
+      <input type="text" id="new-name" placeholder="e.g. alice" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label>Note (optional)</label>
+      <input type="text" id="new-note" placeholder="e.g. monthly plan">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('add-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitAddUser()">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW LINK MODAL -->
+<div class="modal-overlay" id="link-modal">
+  <div class="modal">
+    <div class="modal-title">VLESS link</div>
+    <div style="color:var(--muted);font-size:12px;margin-bottom:8px;">Click to copy</div>
+    <div class="link-box" id="link-modal-content" onclick="copyLink()"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('link-modal')">Close</button>
+      <button class="btn btn-primary" onclick="copyLink()">Copy link</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+let users = [];
+let domain = location.hostname;
+
+// ── Routing ──────────────────────────────────────────────────────────────────
+function showPage(name, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  if (el) el.classList.add('active');
+  if (name === 'users')  loadUsers();
+  if (name === 'config') loadConfig();
+}
+
+// ── Toast ────────────────────────────────────────────────────────────────────
+let toastTimer;
+function toast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.className = '', 2800);
+}
+
+// ── Status ───────────────────────────────────────────────────────────────────
+async function loadStatus() {
+  try {
+    const res = await fetch('/api/status');
+    const d = await res.json();
+    const el = document.getElementById('s-status');
+    el.textContent = d.active ? 'Running' : 'Stopped';
+    el.className = 'stat-value ' + (d.active ? 'green' : 'red');
+    document.getElementById('s-version').textContent = d.version.split(' ').slice(0,2).join(' ');
+    document.getElementById('s-since').textContent = d.since || '—';
+    document.getElementById('footer-status').textContent = d.active ? '● running' : '○ stopped';
+    document.getElementById('footer-status').style.color = d.active ? 'var(--green)' : 'var(--red)';
+  } catch(e) {
+    document.getElementById('s-status').textContent = 'Error';
+  }
+}
+
+async function loadUserStats() {
+  try {
+    const res = await fetch('/api/users');
+    const list = await res.json();
+    users = list;
+    document.getElementById('s-total').textContent = list.length;
+    document.getElementById('s-active').textContent = list.filter(u => u.enabled).length;
+  } catch(e) {}
+}
+
+// ── Users ────────────────────────────────────────────────────────────────────
+async function loadUsers() {
+  const tbody = document.getElementById('users-tbody');
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">Loading…</td></tr>';
+  const res = await fetch('/api/users');
+  users = await res.json();
+  document.getElementById('s-total').textContent = users.length;
+  document.getElementById('s-active').textContent = users.filter(u=>u.enabled).length;
+
+  if (!users.length) {
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty"><div class="empty-icon">◎</div>No users yet — add one above.</div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = users.map(u => `
+    <tr>
+      <td style="color:var(--muted)">${u.id}</td>
+      <td style="font-weight:500">${esc(u.name)}</td>
+      <td class="uuid-cell" onclick="showLink('${u.uuid}','${esc(u.name)}')" title="Click to get VLESS link">${u.uuid}</td>
+      <td>
+        <span class="badge ${u.enabled ? 'badge-green' : 'badge-red'}">
+          ${u.enabled ? 'enabled' : 'disabled'}
+        </span>
+      </td>
+      <td style="color:var(--muted)">${esc(u.note||'')}</td>
+      <td style="color:var(--muted);font-size:12px">${u.created.split('T')[0]}</td>
+      <td style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-sm" onclick="toggleUser(${u.id},${u.enabled})">
+          ${u.enabled ? 'Disable' : 'Enable'}
+        </button>
+        <button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id},'${esc(u.name)}')">Delete</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function submitAddUser() {
+  const name = document.getElementById('new-name').value.trim();
+  const note = document.getElementById('new-note').value.trim();
+  if (!name) { toast('Name is required', 'error'); return; }
+
+  const res = await fetch('/api/users', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({name, note})
+  });
+  const d = await res.json();
+  if (d.success) {
+    toast('User created — Xray restarted');
+    closeModal('add-modal');
+    document.getElementById('new-name').value = '';
+    document.getElementById('new-note').value = '';
+    loadUsers();
+    loadStatus();
+  } else {
+    toast(d.detail || 'Error', 'error');
+  }
+}
+
+async function toggleUser(id, currentEnabled) {
+  const res = await fetch('/api/users/'+id, {
+    method: 'PATCH',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({enabled: !currentEnabled})
+  });
+  const d = await res.json();
+  if (d.success) { toast('Updated — Xray restarted'); loadUsers(); }
+  else toast('Error', 'error');
+}
+
+async function deleteUser(id, name) {
+  if (!confirm(`Delete user "${name}"?`)) return;
+  const res = await fetch('/api/users/'+id, {method:'DELETE'});
+  const d = await res.json();
+  if (d.success) { toast('Deleted — Xray restarted'); loadUsers(); }
+  else toast('Error', 'error');
+}
+
+// ── Restart ──────────────────────────────────────────────────────────────────
+async function restartXray() {
+  toast('Restarting Xray…');
+  const res = await fetch('/api/xray/restart', {method:'POST'});
+  const d = await res.json();
+  if (d.success) { toast('Xray restarted ✓'); loadStatus(); }
+  else toast('Restart failed: ' + d.error, 'error');
+}
+
+// ── Config ───────────────────────────────────────────────────────────────────
+async function loadConfig() {
+  document.getElementById('config-box').textContent = 'Loading…';
+  try {
+    const res = await fetch('/api/status'); // just show from disk below
+    // For security, we only expose structure hints not full config from this demo
+    document.getElementById('config-box').textContent =
+      `Config path: /usr/local/etc/xray/config.json\n\nUsers are synced automatically.\nEdit TLS certs and domain in the config file directly.\n\nVLESS link format:\nvless://<UUID>@${domain}:443?encryption=none&security=tls&type=ws&path=%2Fvless#<Name>`;
+  } catch(e) {
+    document.getElementById('config-box').textContent = 'Could not load status.';
+  }
+}
+
+// ── Link modal ───────────────────────────────────────────────────────────────
+function showLink(uuid, name) {
+  const link = `vless://${uuid}@${domain}:443?encryption=none&security=tls&type=ws&path=%2Fvless#${encodeURIComponent(name)}`;
+  document.getElementById('link-modal-content').textContent = link;
+  document.getElementById('link-modal').classList.add('open');
+}
+
+function copyLink() {
+  const text = document.getElementById('link-modal-content').textContent;
+  navigator.clipboard.writeText(text).then(() => toast('Link copied ✓'));
+}
+
+// ── Modals ───────────────────────────────────────────────────────────────────
+function openAddModal() {
+  document.getElementById('add-modal').classList.add('open');
+  setTimeout(() => document.getElementById('new-name').focus(), 50);
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
+  if (e.key === 'Enter' && document.getElementById('add-modal').classList.contains('open')) submitAddUser();
+});
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+loadStatus();
+loadUserStats();
+setInterval(loadStatus, 15000);
+</script>
+</body>
+</html>

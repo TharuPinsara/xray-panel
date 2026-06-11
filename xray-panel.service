@@ -1,0 +1,17 @@
+[Unit]
+Description=Xray Panel (FastAPI)
+After=network.target xray.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/xray-panel
+Environment=XRAY_CONFIG_PATH=/usr/local/etc/xray/config.json
+Environment=DB_PATH=/var/lib/xray-panel/users.db
+Environment=PANEL_PORT=8080
+ExecStart=/opt/xray-panel/venv/bin/uvicorn main:app --host 127.0.0.1 --port 8080
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
